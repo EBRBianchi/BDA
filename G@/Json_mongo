@@ -1,0 +1,93 @@
+// Collection: livros
+db.createCollection("livros", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["isbn", "titulo", "exemplares"],
+      properties: {
+        _id: { bsonType: "objectId" },
+        isbn: { bsonType: "string", description: "ISBN único do livro" },
+        titulo: { bsonType: "string" },
+        editora: { bsonType: "string" },
+        ano_publicacao: { bsonType: "int" },
+        autores: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            properties: {
+              nome: { bsonType: "string" },
+              nacionalidade: { bsonType: "string" }
+            }
+          }
+        },
+        categorias: { 
+          bsonType: "array",
+          items: { bsonType: "string" }
+        },
+        exemplares: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            properties: {
+              codigo_barras: { bsonType: "string" },
+              localizacao: { bsonType: "string" },
+              status: { bsonType: "string", enum: ["Disponível", "Emprestado", "Manutenção"] }
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
+// Collection: membros
+db.createCollection("membros", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["matricula", "nome", "email"],
+      properties: {
+        _id: { bsonType: "objectId" },
+        matricula: { bsonType: "string" },
+        nome: { bsonType: "string" },
+        email: { bsonType: "string" },
+        telefone: { bsonType: "string" },
+        tipo_membro: {
+          bsonType: "object",
+          properties: {
+            nome: { bsonType: "string" },
+            limite_emprestimos: { bsonType: "int" },
+            prazo_devolucao_dias: { bsonType: "int" }
+          }
+        },
+        historico_emprestimos: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            properties: {
+              isbn: { bsonType: "string" },
+              titulo: { bsonType: "string" },
+              data_emprestimo: { bsonType: "date" },
+              data_devolucao_prevista: { bsonType: "date" },
+              data_devolucao_efetiva: { bsonType: "date" }
+            }
+          }
+        },
+        reservas_pendentes: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            properties: {
+              isbn: { bsonType: "string" },
+              titulo: { bsonType: "string" },
+              data_reserva: { bsonType: "date" }
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
+// Collection: emprestimos (opcional, se quiser histórico separado)
+db.createCollection("emprestimos");
