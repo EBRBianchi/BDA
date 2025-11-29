@@ -1,0 +1,519 @@
+CREATE DATABASE IF NOT EXISTS codex_humanitas_;
+USE codex_humanitas_;
+
+CREATE TABLE tipo_membro (
+    id_tipo_membro SERIAL PRIMARY KEY,
+    nome VARCHAR(50) NOT NULL UNIQUE,
+    limite_emprestimos INT NOT NULL CHECK (limite_emprestimos > 0),
+    prazo_devolucao_dias INT NOT NULL CHECK (prazo_devolucao_dias > 0)
+);
+
+CREATE TABLE membro (
+    matricula VARCHAR(20) PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    telefone VARCHAR(20),
+    id_tipo_membro INT NOT NULL,
+    CONSTRAINT fk_membro_tipo
+        FOREIGN KEY (id_tipo_membro)
+        REFERENCES tipo_membro (id_tipo_membro)
+);
+
+CREATE TABLE livro (
+    isbn VARCHAR(20) PRIMARY KEY,
+    titulo VARCHAR(200) NOT NULL,
+    editora VARCHAR(100),
+    ano_publicacao INT CHECK (ano_publicacao >= 0)
+);
+
+CREATE TABLE autor (
+    id_autor SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    nacionalidade VARCHAR(50)
+);
+
+CREATE TABLE livro_autor (
+    isbn VARCHAR(20) NOT NULL,
+    id_autor INT NOT NULL,
+    PRIMARY KEY (isbn, id_autor),
+    CONSTRAINT fk_la_livro
+        FOREIGN KEY (isbn) REFERENCES livro (isbn),
+    CONSTRAINT fk_la_autor
+        FOREIGN KEY (id_autor) REFERENCES autor (id_autor)
+);
+
+CREATE TABLE categoria (
+    id_categoria SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE livro_categoria (
+    isbn BIGINT(20) NOT NULL,
+    id_categoria INT NOT NULL,
+    PRIMARY KEY (isbn, id_categoria),
+    CONSTRAINT fk_lc_livro
+        FOREIGN KEY (isbn) REFERENCES livro (isbn),
+    CONSTRAINT fk_lc_categoria
+        FOREIGN KEY (id_categoria) REFERENCES categoria (id_categoria)
+);
+
+CREATE TABLE exemplar (
+    codigo_barras VARCHAR(30) PRIMARY KEY,
+    isbn VARCHAR(20) NOT NULL,
+    localizacao VARCHAR(50) NOT NULL,
+    status VARCHAR(15) NOT NULL,
+    CONSTRAINT fk_exemplar_livro
+        FOREIGN KEY (isbn) REFERENCES livro (isbn),
+    CONSTRAINT chk_exemplar_status
+        CHECK (status IN ('Disponível', 'Emprestado', 'Manutenção'))
+);
+
+CREATE TABLE emprestimo (
+    id_emprestimo SERIAL PRIMARY KEY,
+    codigo_barras VARCHAR(30) NOT NULL,
+    matricula_membro VARCHAR(20) NOT NULL,
+    data_emprestimo DATE NOT NULL,
+    data_devolucao_prevista DATE NOT NULL,
+    data_devolucao_efetiva DATE,
+    CONSTRAINT fk_emp_exemplar
+        FOREIGN KEY (codigo_barras) REFERENCES exemplar (codigo_barras),
+    CONSTRAINT fk_emp_membro
+        FOREIGN KEY (matricula_membro) REFERENCES membro (matricula),
+    CONSTRAINT chk_datas_emprestimo
+        CHECK (data_devolucao_prevista >= data_emprestimo)
+);
+
+CREATE TABLE reserva (
+    id_reserva SERIAL PRIMARY KEY,
+    isbn VARCHAR(20) NOT NULL,
+    matricula_membro VARCHAR(20) NOT NULL,
+    data_reserva DATE NOT NULL,
+    CONSTRAINT fk_res_livro
+        FOREIGN KEY (isbn) REFERENCES livro (isbn),
+    CONSTRAINT fk_res_membro
+        FOREIGN KEY (matricula_membro) REFERENCES membro (matricula)
+);
+
+CREATE TABLE log_emprestimos (
+    id_log SERIAL PRIMARY KEY,
+    id_emprestimo INT NOT NULL,
+    codigo_barras VARCHAR(30) NOT NULL,
+    matricula_membro VARCHAR(20) NOT NULL,
+    data_emprestimo DATE NOT NULL,
+    data_registro TIMESTAMP NOT NULL DEFAULT now()
+);
+
+INSERT INTO tipo_membro (nome, limite_emprestimos, prazo_devolucao_dias) VALUES
+('Aluno Graduação', 3, 7),
+('Professor', 5, 14),
+('Funcionário', 4, 10);
+
+INSERT INTO autor (nome, nacionalidade) VALUES
+('Autor A', 'Brasil'),
+('Autor B', 'Brasil'),
+('Autor C', 'EUA'),
+('Autor D', 'Reino Unido'),
+('Autor E', 'Brasil');
+
+INSERT INTO categoria (nome) VALUES
+('Ficção Científica'),
+('Banco de Dados'),
+('História'),
+('Programação');
+
+INSERT INTO livro (isbn, titulo, editora, ano_publicacao) VALUES
+('ISBN001', 'Introdução a Banco de Dados', 'Editora Xtrem H', 2020),
+('ISBN002', 'SQL Avançado', 'Editora Yellow', 2019),
+('ISBN003', 'História do Brasil', 'Editora Zabixx', 2015),
+('ISBN004', 'Programação em Python', 'Editora Window', 2021),
+('ISBN005', 'Ficção Espacial', 'Editora Constract', 2018),
+('ISBN006', 'NoSQL Conceitos', 'Editora Rip', 2022),
+('ISBN007', 'Algoritmos', 'Editora trigger', 2017),
+('ISBN008', 'Banco de Dados Aplicado', 'Editora Function', 2023);
+
+INSERT INTO livro_autor (isbn, id_autor) VALUES
+('ISBN001', 1),
+('ISBN001', 2),
+('ISBN002', 2),
+('ISBN003', 3),
+('ISBN004', 4),
+('ISBN005', 5),
+('ISBN006', 1),
+('ISBN007', 4),
+('ISBN008', 1),
+('ISBN008', 3);
+
+INSERT INTO livro_categoria (isbn, id_categoria) VALUES
+('ISBN001', 2),
+('ISBN001', 4),
+('ISBN002', 2),
+('ISBN003', 3),
+('ISBN004', 4),
+('ISBN005', 1),
+('ISBN006', 2),
+('ISBN007', 4),
+('ISBN008', 2);
+
+INSERT INTO membro (matricula, nome, email, telefone, id_tipo_membro) VALUES
+('M001', 'Aluno 1', 'eduardo@exemplo.com', '1111', 1),
+('M002', 'Aluno 2', 'agusto@exemplo.com', '2222', 1),
+('M003', 'Aluno 3', 'gael@exemplo.com', '3333', 1),
+('M004', 'Aluno 4', 'matias@exemplo.com', '4444', 1),
+('M005', 'Professor 1', 'gilberto@exemplo.com', '5555', 2),
+('M006', 'Professor 2', 'andERSON@exemplo.com', '6666', 2),
+('M007', 'Funcionario 1', 'MISTER@exemplo.com', '7777', 3),
+('M008', 'Funcionario 2', 'f1SMS@exemplo.com', '8888', 3);
+
+INSERT INTO exemplar (codigo_barras, isbn, localizacao, status) VALUES
+('E001', 'ISBN001', '3A', 'Emprestado'),
+('E002', 'ISBN001', '3A', 'Emprestado'),
+('E003', 'ISBN001', '3A', 'Emprestado'),
+('E004', 'ISBN002', '3B', 'Disponível'),
+('E005', 'ISBN002', '3B', 'Emprestado'),
+('E006', 'ISBN003', '2A', 'Disponível'),
+('E007', 'ISBN004', '4C', 'Disponível'),
+('E008', 'ISBN005', '1A', 'Manutenção'),
+('E009', 'ISBN006', '3C', 'Disponível'),
+('E010', 'ISBN007', '4A', 'Emprestado'),
+('E011', 'ISBN008', '2C', 'Emprestado'),
+('E012', 'ISBN008', '2C', 'Emprestado');
+
+INSERT INTO emprestimo (codigo_barras, matricula_membro, data_emprestimo, data_devolucao_prevista, data_devolucao_efetiva) VALUES
+('E001', 'M001', '2025-11-01', '2025-11-08', '2025-11-10'),
+('E002', 'M002', '2025-11-15', '2025-11-22', NULL),
+('E003', 'M003', '2025-11-10', '2025-11-17', NULL),
+('E005', 'M004', '2025-11-05', '2025-11-12', '2025-11-11'),
+('E006', 'M005', '2025-11-03', '2025-11-10', '2025-11-25'),
+('E007', 'M006', '2025-11-18', '2025-11-25', NULL),
+('E008', 'M007', '2025-11-02', '2025-11-09', '2025-11-09'),
+('E009', 'M008', '2025-11-20', '2025-11-27', NULL),
+('E010', 'M001', '2025-11-12', '2025-11-19', NULL),
+('E011', 'M002', '2025-11-01', '2025-11-08', '2025-11-20'),
+('E012', 'M003', '2025-11-05', '2025-11-12', NULL);
+
+INSERT INTO reserva (isbn, matricula_membro, data_reserva) VALUES
+('ISBN001', 'M004', '2025-11-18'),
+('ISBN001', 'M005', '2025-11-19'),
+('ISBN001', 'M006', '2025-11-20');
+
+
+-- a) Function fn_calcular_dias_atraso
+DELIMITER $$
+
+CREATE FUNCTION fn_calcular_dias_atraso(p_id_emprestimo INT)
+RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE v_prevista DATE;
+    DECLARE v_efetiva DATE;
+    DECLARE v_hoje DATE;
+    DECLARE v_base DATE;
+    DECLARE v_dias INT;
+    
+    SET v_hoje = CURDATE();
+    
+    SELECT data_devolucao_prevista, data_devolucao_efetiva
+    INTO v_prevista, v_efetiva
+    FROM emprestimo
+    WHERE id_emprestimo = p_id_emprestimo;
+    
+    IF v_prevista IS NULL THEN
+        RETURN 0;
+    END IF;
+    
+    IF v_efetiva IS NULL THEN
+        SET v_base = v_hoje;
+    ELSE
+        SET v_base = v_efetiva;
+    END IF;
+    
+    SET v_dias = GREATEST(DATEDIFF(v_base, v_prevista), 0);
+    RETURN v_dias;
+END$$
+
+DELIMITER ;
+
+-- b) Function fn_verificar_disponibilidade_livro
+DELIMITER $$
+
+CREATE FUNCTION fn_verificar_disponibilidade_livro(p_isbn_livro VARCHAR(20))
+RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE v_qtd INT;
+    
+    SELECT COUNT(*)
+    INTO v_qtd
+    FROM exemplar
+    WHERE isbn = p_isbn_livro
+      AND status = 'Disponível';
+    
+    RETURN v_qtd;
+END$$
+
+DELIMITER ;
+
+-- c) Stored Procedure sp_realizar_devolucao
+DELIMITER $$
+
+CREATE PROCEDURE sp_realizar_devolucao(IN p_codigo_barras VARCHAR(30))
+BEGIN
+    DECLARE v_id_emprestimo INT;
+    DECLARE v_dias_atraso INT;
+    DECLARE v_mensagem VARCHAR(100);
+    
+    SELECT id_emprestimo
+    INTO v_id_emprestimo
+    FROM emprestimo
+    WHERE codigo_barras = p_codigo_barras
+      AND data_devolucao_efetiva IS NULL
+    ORDER BY data_emprestimo DESC
+    LIMIT 1;
+    
+    IF v_id_emprestimo IS NULL THEN
+        SELECT 'Nenhum empréstimo ativo encontrado para o exemplar' AS mensagem;
+        LEAVE;
+    END IF;
+    
+    UPDATE emprestimo
+       SET data_devolucao_efetiva = CURDATE()
+     WHERE id_emprestimo = v_id_emprestimo;
+    
+    UPDATE exemplar
+       SET status = 'Disponível'
+     WHERE codigo_barras = p_codigo_barras;
+    
+    SET v_dias_atraso = fn_calcular_dias_atraso(v_id_emprestimo);
+    
+    IF v_dias_atraso > 0 THEN
+        SET v_mensagem = CONCAT('Devolução com atraso de ', v_dias_atraso, ' dia(s).');
+    ELSE
+        SET v_mensagem = 'Devolução realizada sem atraso.';
+    END IF;
+    
+    SELECT v_mensagem AS resultado;
+END$$
+
+DELIMITER ;
+
+--
+DELIMITER $$
+
+CREATE PROCEDURE sp_processar_fila_reserva(IN p_isbn_livro VARCHAR(20))
+BEGIN
+    DECLARE v_id_reserva INT;
+    DECLARE v_matricula VARCHAR(20);
+    DECLARE v_data_reserva DATE;
+    
+    SELECT id_reserva, matricula_membro, data_reserva
+    INTO v_id_reserva, v_matricula, v_data_reserva
+    FROM reserva
+    WHERE isbn = p_isbn_livro
+    ORDER BY data_reserva
+    LIMIT 1;
+    
+    IF v_id_reserva IS NULL THEN
+        SELECT CONCAT('Não há reservas para o livro ', p_isbn_livro) AS resultado;
+    ELSE
+        SELECT CONCAT('Próximo da fila para o livro ', p_isbn_livro, 
+                      ' é o membro ', v_matricula, 
+                      ' (reserva em ', v_data_reserva, ')') AS resultado;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- e) Trigger trg_auditar_novos_emprestimos
+DELIMITER $$
+
+CREATE TRIGGER trg_auditar_novos_emprestimos
+AFTER INSERT ON emprestimo
+FOR EACH ROW
+BEGIN
+    INSERT INTO log_emprestimos (id_emprestimo, codigo_barras, matricula_membro, data_emprestimo, data_registro)
+    VALUES (NEW.id_emprestimo, NEW.codigo_barras, NEW.matricula_membro, NEW.data_emprestimo, NOW());
+END$$
+
+DELIMITER ;
+
+-- f) Trigger trg_impedir_emprestimo_reservado
+DELIMITER $$
+
+CREATE TRIGGER trg_impedir_emprestimo_reservado
+BEFORE INSERT ON emprestimo
+FOR EACH ROW
+BEGIN
+    DECLARE v_matricula_primeiro VARCHAR(20);
+    
+    SELECT matricula_membro
+    INTO v_matricula_primeiro
+    FROM reserva r
+    JOIN exemplar e ON e.isbn = r.isbn
+    WHERE e.codigo_barras = NEW.codigo_barras
+    ORDER BY r.data_reserva
+    LIMIT 1;
+    
+    IF v_matricula_primeiro IS NOT NULL AND NEW.matricula_membro <> v_matricula_primeiro THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Livro reservado! Apenas o membro com a reserva pode emprestar.';
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+CREATE OR REPLACE FUNCTION fn_trg_auditar_novos_emprestimos()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO log_emprestimos (id_emprestimo, codigo_barras, matricula_membro, data_emprestimo)
+    VALUES (NEW.id_emprestimo, NEW.codigo_barras, NEW.matricula_membro, NEW.data_emprestimo);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_auditar_novos_emprestimos
+AFTER INSERT ON emprestimo
+FOR EACH ROW
+EXECUTE FUNCTION fn_trg_auditar_novos_emprestimos();
+
+CREATE OR REPLACE FUNCTION fn_trg_impedir_emprestimo_reservado()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_matricula_primeiro VARCHAR(20);
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM reserva r
+        JOIN exemplar e ON e.isbn = r.isbn
+        WHERE e.codigo_barras = NEW.codigo_barras
+    ) THEN
+        SELECT r.matricula_membro
+        INTO v_matricula_primeiro
+        FROM reserva r
+        JOIN exemplar e ON e.isbn = r.isbn
+        WHERE e.codigo_barras = NEW.codigo_barras
+        ORDER BY r.data_reserva
+        LIMIT 1;
+
+        IF NEW.matricula_membro <> v_matricula_primeiro THEN
+            RAISE EXCEPTION 'Livro reservado para o membro %, não é permitido emprestar para %',
+                            v_matricula_primeiro, NEW.matricula_membro;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_impedir_emprestimo_reservado
+BEFORE INSERT ON emprestimo
+FOR EACH ROW
+EXECUTE FUNCTION fn_trg_impedir_emprestimo_reservado();
+
+
+CREATE OR REPLACE VIEW vw_livros_disponiveis AS
+SELECT
+    l.isbn,
+    l.titulo,
+    array_agg(DISTINCT c.nome) AS categorias,
+    COUNT(e.codigo_barras) AS contagem_disponiveis
+FROM livro l
+JOIN exemplar e ON e.isbn = l.isbn AND e.status = 'Disponível'
+LEFT JOIN livro_categoria lc ON lc.isbn = l.isbn
+LEFT JOIN categoria c ON c.id_categoria = lc.id_categoria
+GROUP BY l.isbn, l.titulo;
+
+CREATE MATERIALIZED VIEW mvw_ranking_livros_populares AS
+SELECT
+    l.isbn,
+    l.titulo,
+    COUNT(emp.id_emprestimo) AS total_de_emprestimos
+FROM livro l
+JOIN exemplar e ON e.isbn = l.isbn
+JOIN emprestimo emp ON emp.codigo_barras = e.codigo_barras
+GROUP BY l.isbn, l.titulo
+ORDER BY total_de_emprestimos DESC;
+
+-- a) Empréstimos ativos
+SELECT
+    m.nome AS nome_membro,
+    l.titulo AS titulo_livro,
+    emp.data_devolucao_prevista
+FROM emprestimo emp
+JOIN membro m ON m.matricula = emp.matricula_membro
+JOIN exemplar ex ON ex.codigo_barras = emp.codigo_barras
+JOIN livro l ON l.isbn = ex.isbn
+WHERE emp.data_devolucao_efetiva IS NULL;
+
+-- b) Autores e seus livros (incluindo autores sem livros)
+SELECT
+    a.nome AS nome_autor,
+    l.titulo AS titulo_livro
+FROM autor a
+LEFT JOIN livro_autor la ON la.id_autor = a.id_autor
+LEFT JOIN livro l ON l.isbn = la.isbn
+ORDER BY a.nome, l.titulo;
+
+-- c) Membros com livros atrasados
+SELECT DISTINCT
+    m.matricula,
+    m.nome
+FROM emprestimo emp
+JOIN membro m ON m.matricula = emp.matricula_membro
+WHERE fn_calcular_dias_atraso(emp.id_emprestimo) > 0
+  AND emp.data_devolucao_efetiva IS NULL;
+
+-- d) Fila de reserva de um livro (exemplo ISBN001)
+SELECT
+    m.nome AS nome_membro,
+    r.data_reserva
+FROM reserva r
+JOIN membro m ON m.matricula = r.matricula_membro
+WHERE r.isbn = 'ISBN001'
+ORDER BY r.data_reserva;
+
+-- e) Análise de multas (R$2,00 por dia de atraso)
+SELECT
+    m.nome AS nome_membro,
+    l.titulo AS titulo_livro,
+    fn_calcular_dias_atraso(emp.id_emprestimo) * 2.00 AS valor_da_multa
+FROM emprestimo emp
+JOIN membro m ON m.matricula = emp.matricula_membro
+JOIN exemplar ex ON ex.codigo_barras = emp.codigo_barras
+JOIN livro l ON l.isbn = ex.isbn
+WHERE emp.data_devolucao_efetiva IS NOT NULL
+  AND fn_calcular_dias_atraso(emp.id_emprestimo) > 0;
+
+-- f) Livros de "Banco de Dados" disponíveis (usando a view)
+SELECT
+    v.isbn,
+    v.titulo,
+    v.contagem_disponiveis
+FROM vw_livros_disponiveis v
+WHERE 'Banco de Dados' = ANY (v.categorias);
+
+-- g) Top 5 livros mais emprestados
+SELECT
+    isbn,
+    titulo,
+    total_de_emprestimos
+FROM mvw_ranking_livros_populares
+ORDER BY total_de_emprestimos DESC
+LIMIT 5;
+
+-- h) Membros que atingiram o limite de empréstimos simultâneos
+SELECT
+    m.matricula,
+    m.nome
+FROM membro m
+JOIN tipo_membro tm ON tm.id_tipo_membro = m.id_tipo_membro
+JOIN emprestimo emp ON emp.matricula_membro = m.matricula
+WHERE emp.data_devolucao_efetiva IS NULL
+GROUP BY m.matricula, m.nome, tm.limite_emprestimos
+HAVING COUNT(emp.id_emprestimo) >= tm.limite_emprestimos;
+
+
+
+
