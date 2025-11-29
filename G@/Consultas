@@ -1,0 +1,64 @@
+-- a) Empréstimos ativos
+SELECT
+    m.nome AS nome_membro,
+    l.titulo AS titulo_livro,
+    emp.data_devolucao_prevista
+FROM emprestimo emp
+JOIN membro m ON m.matricula = emp.matricula_membro
+JOIN exemplar ex ON ex.codigo_barras = emp.codigo_barras
+JOIN livro l ON l.isbn = ex.isbn
+WHERE emp.data_devolucao_efetiva IS NULL;
+
+-- b) Autores e seus livros (incluindo autores sem livros)
+SELECT
+    a.nome AS nome_autor,
+    l.titulo AS titulo_livro
+FROM autor a
+LEFT JOIN livro_autor la ON la.id_autor = a.id_autor
+LEFT JOIN livro l ON l.isbn = la.isbn
+ORDER BY a.nome, l.titulo;
+
+-- c) Membros com livros atrasados
+SELECT DISTINCT
+    m.matricula,
+    m.nome
+FROM emprestimo emp
+JOIN membro m ON m.matricula = emp.matricula_membro
+WHERE fn_calcular_dias_atraso(emp.id_emprestimo) > 0
+  AND emp.data_devolucao_efetiva IS NULL;
+
+-- d) Fila de reserva de um livro (exemplo ISBN001)
+SELECT
+    m.nome AS nome_membro,
+    r.data_reserva
+FROM reserva r
+JOIN membro m ON m.matricula = r.matricula_membro
+WHERE r.isbn = 'ISBN001'
+ORDER BY r.data_reserva;
+
+-- e) Análise de multas (R$2,00 por dia de atraso)
+SELECT
+    m.nome AS nome_membro,
+    l.titulo AS titulo_livro,
+    fn_calcular_dias_atraso(emp.id_emprestimo) * 2.00 AS valor_da_multa
+FROM emprestimo emp
+JOIN membro m ON m.matricula = emp.matricula_membro
+JOIN exemplar ex ON ex.codigo_barras = emp.codigo_barras
+JOIN livro l ON l.isbn = ex.isbn
+WHERE emp.data_devolucao_efetiva IS NOT NULL
+  AND fn_calcular_dias_atraso(emp.id_emprestimo) > 0;
+
+-- f) Livros de "Banco de Dados" disponíveis (usando a view)
+SELECT
+    v.isbn,
+    v.titulo,
+    v.contagem_disponiveis
+FROM vw_livros_disponiveis v
+WHERE 'Banco de Dados' = ANY (v.categorias);
+
+-- g) Top 5 livros mais emprestados
+SELECT
+    isbn,
+    titulo,
+    total_de_emprestimos
+FROM mvw_ranking_livros_populares
