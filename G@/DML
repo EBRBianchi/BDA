@@ -1,0 +1,92 @@
+INSERT INTO tipo_membro (nome, limite_emprestimos, prazo_devolucao_dias) VALUES
+('Aluno Graduação', 3, 7),
+('Professor', 5, 14),
+('Funcionário', 4, 10);
+
+INSERT INTO autor (nome, nacionalidade) VALUES
+('Autor A', 'Brasil'),
+('Autor B', 'Brasil'),
+('Autor C', 'EUA'),
+('Autor D', 'Reino Unido'),
+('Autor E', 'Brasil');
+
+INSERT INTO categoria (nome) VALUES
+('Ficção Científica'),
+('Banco de Dados'),
+('História'),
+('Programação');
+
+INSERT INTO livro (isbn, titulo, editora, ano_publicacao) VALUES
+('ISBN001', 'Introdução a Banco de Dados', 'Editora Xtrem H', 2020),
+('ISBN002', 'SQL Avançado', 'Editora Yellow', 2019),
+('ISBN003', 'História do Brasil', 'Editora Zabixx', 2015),
+('ISBN004', 'Programação em Python', 'Editora Window', 2021),
+('ISBN005', 'Ficção Espacial', 'Editora Constract', 2018),
+('ISBN006', 'NoSQL Conceitos', 'Editora Rip', 2022),
+('ISBN007', 'Algoritmos', 'Editora trigger', 2017),
+('ISBN008', 'Banco de Dados Aplicado', 'Editora Function', 2023);
+
+INSERT INTO livro_autor (isbn, id_autor) VALUES
+('ISBN001', 1),
+('ISBN001', 2),
+('ISBN002', 2),
+('ISBN003', 3),
+('ISBN004', 4),
+('ISBN005', 5),
+('ISBN006', 1),
+('ISBN007', 4),
+('ISBN008', 1),
+('ISBN008', 3);
+
+INSERT INTO livro_categoria (isbn, id_categoria) VALUES
+('ISBN001', 2),
+('ISBN001', 4),
+('ISBN002', 2),
+('ISBN003', 3),
+('ISBN004', 4),
+('ISBN005', 1),
+('ISBN006', 2),
+('ISBN007', 4),
+('ISBN008', 2);
+
+INSERT INTO membro (matricula, nome, email, telefone, id_tipo_membro) VALUES
+('M001', 'Aluno 1', 'eduardo@exemplo.com', '1111', 1),
+('M002', 'Aluno 2', 'agusto@exemplo.com', '2222', 1),
+('M003', 'Aluno 3', 'gael@exemplo.com', '3333', 1),
+('M004', 'Aluno 4', 'matias@exemplo.com', '4444', 1),
+('M005', 'Professor 1', 'gilberto@exemplo.com', '5555', 2),
+('M006', 'Professor 2', 'andERSON@exemplo.com', '6666', 2),
+('M007', 'Funcionario 1', 'MISTER@exemplo.com', '7777', 3),
+('M008', 'Funcionario 2', 'f1SMS@exemplo.com', '8888', 3);
+
+INSERT INTO exemplar (codigo_barras, isbn, localizacao, status) VALUES
+('E001', 'ISBN001', '3A', 'Emprestado'),
+('E002', 'ISBN001', '3A', 'Emprestado'),
+('E003', 'ISBN001', '3A', 'Emprestado'),
+('E004', 'ISBN002', '3B', 'Disponível'),
+('E005', 'ISBN002', '3B', 'Emprestado'),
+('E006', 'ISBN003', '2A', 'Disponível'),
+('E007', 'ISBN004', '4C', 'Disponível'),
+('E008', 'ISBN005', '1A', 'Manutenção'),
+('E009', 'ISBN006', '3C', 'Disponível'),
+('E010', 'ISBN007', '4A', 'Emprestado'),
+('E011', 'ISBN008', '2C', 'Emprestado'),
+('E012', 'ISBN008', '2C', 'Emprestado');
+
+INSERT INTO emprestimo (codigo_barras, matricula_membro, data_emprestimo, data_devolucao_prevista, data_devolucao_efetiva) VALUES
+('E001', 'M001', '2025-11-01', '2025-11-08', '2025-11-10'),
+('E002', 'M002', '2025-11-15', '2025-11-22', NULL),
+('E003', 'M003', '2025-11-10', '2025-11-17', NULL),
+('E005', 'M004', '2025-11-05', '2025-11-12', '2025-11-11'),
+('E006', 'M005', '2025-11-03', '2025-11-10', '2025-11-25'),
+('E007', 'M006', '2025-11-18', '2025-11-25', NULL),
+('E008', 'M007', '2025-11-02', '2025-11-09', '2025-11-09'),
+('E009', 'M008', '2025-11-20', '2025-11-27', NULL),
+('E010', 'M001', '2025-11-12', '2025-11-19', NULL),
+('E011', 'M002', '2025-11-01', '2025-11-08', '2025-11-20'),
+('E012', 'M003', '2025-11-05', '2025-11-12', NULL);
+
+INSERT INTO reserva (isbn, matricula_membro, data_reserva) VALUES
+('ISBN001', 'M004', '2025-11-18'),
+('ISBN001', 'M005', '2025-11-19'),
+('ISBN001', 'M006', '2025-11-20');
