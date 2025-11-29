@@ -1,0 +1,165 @@
+-- a) Function fn_calcular_dias_atraso
+DELIMITER $$
+
+CREATE FUNCTION fn_calcular_dias_atraso(p_id_emprestimo INT)
+RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE v_prevista DATE;
+    DECLARE v_efetiva DATE;
+    DECLARE v_hoje DATE;
+    DECLARE v_base DATE;
+    DECLARE v_dias INT;
+    
+    SET v_hoje = CURDATE();
+    
+    SELECT data_devolucao_prevista, data_devolucao_efetiva
+    INTO v_prevista, v_efetiva
+    FROM emprestimo
+    WHERE id_emprestimo = p_id_emprestimo;
+    
+    IF v_prevista IS NULL THEN
+        RETURN 0;
+    END IF;
+    
+    IF v_efetiva IS NULL THEN
+        SET v_base = v_hoje;
+    ELSE
+        SET v_base = v_efetiva;
+    END IF;
+    
+    SET v_dias = GREATEST(DATEDIFF(v_base, v_prevista), 0);
+    RETURN v_dias;
+END$$
+
+DELIMITER ;
+
+-- b) Function fn_verificar_disponibilidade_livro
+DELIMITER $$
+
+CREATE FUNCTION fn_verificar_disponibilidade_livro(p_isbn_livro VARCHAR(20))
+RETURNS INT
+DETERMINISTIC
+READS SQL DATA
+BEGIN
+    DECLARE v_qtd INT;
+    
+    SELECT COUNT(*)
+    INTO v_qtd
+    FROM exemplar
+    WHERE isbn = p_isbn_livro
+      AND status = 'Disponível';
+    
+    RETURN v_qtd;
+END$$
+
+DELIMITER ;
+
+-- c) Stored Procedure sp_realizar_devolucao
+DELIMITER $$
+
+CREATE PROCEDURE sp_realizar_devolucao(IN p_codigo_barras VARCHAR(30))
+BEGIN
+    DECLARE v_id_emprestimo INT;
+    DECLARE v_dias_atraso INT;
+    DECLARE v_mensagem VARCHAR(100);
+    
+    SELECT id_emprestimo
+    INTO v_id_emprestimo
+    FROM emprestimo
+    WHERE codigo_barras = p_codigo_barras
+      AND data_devolucao_efetiva IS NULL
+    ORDER BY data_emprestimo DESC
+    LIMIT 1;
+    
+    IF v_id_emprestimo IS NULL THEN
+        SELECT 'Nenhum empréstimo ativo encontrado para o exemplar' AS mensagem;
+        LEAVE;
+    END IF;
+    
+    UPDATE emprestimo
+       SET data_devolucao_efetiva = CURDATE()
+     WHERE id_emprestimo = v_id_emprestimo;
+    
+    UPDATE exemplar
+       SET status = 'Disponível'
+     WHERE codigo_barras = p_codigo_barras;
+    
+    SET v_dias_atraso = fn_calcular_dias_atraso(v_id_emprestimo);
+    
+    IF v_dias_atraso > 0 THEN
+        SET v_mensagem = CONCAT('Devolução com atraso de ', v_dias_atraso, ' dia(s).');
+    ELSE
+        SET v_mensagem = 'Devolução realizada sem atraso.';
+    END IF;
+    
+    SELECT v_mensagem AS resultado;
+END$$
+
+DELIMITER ;
+
+--
+DELIMITER $$
+
+CREATE PROCEDURE sp_processar_fila_reserva(IN p_isbn_livro VARCHAR(20))
+BEGIN
+    DECLARE v_id_reserva INT;
+    DECLARE v_matricula VARCHAR(20);
+    DECLARE v_data_reserva DATE;
+    
+    SELECT id_reserva, matricula_membro, data_reserva
+    INTO v_id_reserva, v_matricula, v_data_reserva
+    FROM reserva
+    WHERE isbn = p_isbn_livro
+    ORDER BY data_reserva
+    LIMIT 1;
+    
+    IF v_id_reserva IS NULL THEN
+        SELECT CONCAT('Não há reservas para o livro ', p_isbn_livro) AS resultado;
+    ELSE
+        SELECT CONCAT('Próximo da fila para o livro ', p_isbn_livro, 
+                      ' é o membro ', v_matricula, 
+                      ' (reserva em ', v_data_reserva, ')') AS resultado;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- e) Trigger trg_auditar_novos_emprestimos
+DELIMITER $$
+
+CREATE TRIGGER trg_auditar_novos_emprestimos
+AFTER INSERT ON emprestimo
+FOR EACH ROW
+BEGIN
+    INSERT INTO log_emprestimos (id_emprestimo, codigo_barras, matricula_membro, data_emprestimo, data_registro)
+    VALUES (NEW.id_emprestimo, NEW.codigo_barras, NEW.matricula_membro, NEW.data_emprestimo, NOW());
+END$$
+
+DELIMITER ;
+
+-- f) Trigger trg_impedir_emprestimo_reservado
+DELIMITER $$
+
+CREATE TRIGGER trg_impedir_emprestimo_reservado
+BEFORE INSERT ON emprestimo
+FOR EACH ROW
+BEGIN
+    DECLARE v_matricula_primeiro VARCHAR(20);
+    
+    SELECT matricula_membro
+    INTO v_matricula_primeiro
+    FROM reserva r
+    JOIN exemplar e ON e.isbn = r.isbn
+    WHERE e.codigo_barras = NEW.codigo_barras
+    ORDER BY r.data_reserva
+    LIMIT 1;
+    
+    IF v_matricula_primeiro IS NOT NULL AND NEW.matricula_membro <> v_matricula_primeiro THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Livro reservado! Apenas o membro com a reserva pode emprestar.';
+    END IF;
+END$$
+
+DELIMITER ;
